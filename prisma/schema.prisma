@@ -1,0 +1,71 @@
+// This is your Prisma schema file.
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// User: Menyimpan data pengguna
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relasi: User bisa memiliki banyak project dan task
+  ownedProjects Project[]    @relation("ProjectOwner")
+  memberships   Membership[]
+  assignedTasks Task[]
+}
+
+// Project: Menyimpan data project
+model Project {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relasi: Project dimiliki oleh satu User dan memiliki banyak Task & Member
+  owner     User         @relation("ProjectOwner", fields: [ownerId], references: [id])
+  tasks     Task[]
+  members   Membership[]
+}
+
+// Task: Menyimpan data tugas dalam sebuah project
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  status      String
+  projectId   String
+  assigneeId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relasi: Task milik satu Project dan ditugaskan ke satu User
+  project     Project @relation(fields: [projectId], references: [id])
+  assignee    User    @relation(fields: [assigneeId], references: [id])
+}
+
+// Membership: Tabel penghubung untuk relasi Many-to-Many antara User dan Project
+model Membership {
+  id        String   @id @default(uuid())
+  userId    String
+  projectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relasi: Menghubungkan User dan Project
+  user      User    @relation(fields: [userId], references: [id])
+  project   Project @relation(fields: [projectId], references: [id])
+
+  // Constraint: Mencegah duplikasi member dalam satu project
+  @@unique([userId, projectId])
+}
