@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth-config"
-import { prisma } from "@/lib/prisma"
+import { createServerSupabaseClient } from "@/lib/supabase"
 
 // GET - Search users by email (for autocomplete)
 export async function GET(request: NextRequest) {
@@ -23,26 +23,24 @@ export async function GET(request: NextRequest) {
         { error: "Query harus minimal 2 karakter" },
         { status: 400 }
       )
-    }    // Search users by email with limit
-    const users = await prisma.user.findMany({
-      where: {
-        email: {
-          contains: query
-        },
-        // Exclude current user from search results
-        NOT: {
-          id: session.user.id
-        }
-      },
-      select: {
-        id: true,
-        email: true
-      },
-      take: 10, // Limit to 10 results
-      orderBy: {
-        email: 'asc'
-      }
-    })
+    }
+
+    // Search users by email with limit, exclude current user
+    const supabase = createServerSupabaseClient()
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, email')
+      .ilike('email', `%${query}%`)
+      .neq('id', session.user.id)
+      .order('email', { ascending: true })
+      .limit(10)
+
+    if (error) {
+      return NextResponse.json(
+        { error: "Terjadi kesalahan saat mencari user" },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -50,7 +48,6 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("Error searching users:", error)
     return NextResponse.json(
       { error: "Terjadi kesalahan saat mencari user" },
       { status: 500 }

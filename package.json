@@ -16,7 +16,6 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.9.1",
     "@hello-pangea/dnd": "^18.0.1",
-    "@prisma/client": "^6.9.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
@@ -30,7 +29,6 @@
     "lucide-react": "^0.515.0",
     "next": "15.3.3",
     "next-auth": "^4.24.11",
-    "prisma": "^6.9.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "swr": "^2.3.3",
