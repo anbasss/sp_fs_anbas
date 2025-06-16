@@ -51,7 +51,6 @@ export function useProjects() {
         throw new Error("Failed to fetch projects")
       }
         const data: ProjectsResponse = await response.json()
-      console.log("📊 Projects data received:", JSON.stringify(data, null, 2))
       setProjects(data.projects)
       setError(null)
     } catch (err) {

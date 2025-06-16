@@ -22,8 +22,25 @@ export async function GET() {
       )    }    const userId = session.user.id
     const supabase = createServerSupabaseClient()
     
-    // Simplified query - ambil projects yang user miliki sebagai owner dengan owner data
-    const { data: projects, error } = await supabase
+    // Query projects yang user bisa akses - baik sebagai owner maupun member
+    // Pertama, ambil project IDs dari memberships
+    const { data: membershipIds, error: membershipError } = await supabase
+      .from('memberships')
+      .select('project_id')
+      .eq('user_id', userId)
+
+    if (membershipError) {
+      return NextResponse.json(
+        { 
+          error: "Terjadi kesalahan saat mengambil data membership",
+          details: membershipError.message 
+        },
+        { status: 500 }
+      )
+    }    const projectIds = membershipIds?.map(m => m.project_id) || []
+    
+    // Ambil projects yang user miliki sebagai owner ATAU sebagai member
+    let projectsQuery = supabase
       .from('projects')
       .select(`
         id,
@@ -34,8 +51,16 @@ export async function GET() {
         updated_at,
         owner:users!projects_owner_id_fkey(id, email)
       `)
-      .eq('owner_id', userId)
-      .order('created_at', { ascending: false })
+
+    // Jika ada memberships, tambahkan ke query
+    if (projectIds.length > 0) {
+      projectsQuery = projectsQuery.or(`owner_id.eq.${userId},id.in.(${projectIds.join(',')})`)
+    } else {
+      // Jika tidak ada memberships, hanya ambil project milik sendiri
+      projectsQuery = projectsQuery.eq('owner_id', userId)
+    }
+
+    const { data: projects, error } = await projectsQuery.order('created_at', { ascending: false })
 
     if (error) {
       return NextResponse.json(
@@ -46,14 +71,22 @@ export async function GET() {
         { status: 500 }
       )
     }    // Transform data ke format yang diharapkan frontend
-    const transformedProjects = (projects || []).map((project) => ({
-      ...project,
-      ownerId: project.owner_id, // Transform snake_case to camelCase
-      createdAt: project.created_at,
-      updatedAt: project.updated_at,
-      _count: {
-        tasks: 0, // Akan diisi nanti dengan query terpisah jika diperlukan
-        members: 1 // Minimal owner sendiri
+    const transformedProjects = await Promise.all((projects || []).map(async (project) => {
+      // Hitung jumlah members untuk setiap project
+      const { count: memberCount } = await supabase
+        .from('memberships')
+        .select('*', { count: 'exact' })
+        .eq('project_id', project.id)
+
+      return {
+        ...project,
+        ownerId: project.owner_id, // Transform snake_case to camelCase
+        createdAt: project.created_at,
+        updatedAt: project.updated_at,
+        _count: {
+          tasks: 0, // Akan diisi nanti dengan query terpisah jika diperlukan
+          members: memberCount || 0
+        }
       }
     }))
 
