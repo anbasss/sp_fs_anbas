@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     // Search users by email with limit, exclude current user
     const supabase = createServerSupabaseClient()
-    const { data: users, error } = await supabase
+    const { data: users, error: supabaseError } = await supabase
       .from('users')
       .select('id, email')
       .ilike('email', `%${query}%`)
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       .order('email', { ascending: true })
       .limit(10)
 
-    if (error) {
+    if (supabaseError) {
       return NextResponse.json(
         { error: "Terjadi kesalahan saat mencari user" },
         { status: 500 }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       users
     })
 
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Terjadi kesalahan saat mencari user" },
       { status: 500 }
